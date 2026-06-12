@@ -1,27 +1,29 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.IdentityModel.Tokens;
 
 public class CryptoService
 {
-    private readonly string _secret = "CHANGE_THIS_SECRET_KEY_32+_CHARS";
+    private readonly string _secret = "azertyuiopqsdfghjklmwxcvbn1234567890&é'(-è_çà)"; // change this for a more robust secret.
 
-    public string CreateTicket(int userId, string email)
+    public PassportTicket CreateTicket(int userId, string userEmail)
     {
         var payload = new
         {
             uid = userId,
-            email = email,
+            email = userEmail,
             iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             exp = DateTimeOffset.UtcNow.AddHours(8).ToUnixTimeSeconds()
         };
 
         string json = JsonSerializer.Serialize(payload);
-        string base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
-
+        string base64 = Base64UrlEncoder.Encode(Encoding.UTF8.GetBytes(json));
+        
         string signature = Sign(base64);
 
-        return $"t={base64}&p={signature}";
+       string ticket = $"t={base64}&p={signature}";
+       return new PassportTicket(ticket, payload.exp, userId, userEmail);
     }
 
     public bool ValidateTicket(string ticket)
@@ -39,6 +41,6 @@ public class CryptoService
     {
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_secret));
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-        return Convert.ToBase64String(hash);
+        return Base64UrlEncoder.Encode(hash);
     }
 }
